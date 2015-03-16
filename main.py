@@ -3,7 +3,7 @@ import sys
 import os
 import re
 import requests
-from os.path import join, dirname
+from os.path import join, dirname, abspath
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from subprocess import Popen, PIPE
@@ -57,7 +57,7 @@ def upload(track_filename):
                       cookies=dict(PHPSESSID=('%s' % SESSION_ID)))
     # r.url = u'http://aerostatarchive.podfm.ru/podcastedit/?file_id=390711'
     if not r.status_code == 200:
-        print 'Error, response code != 200'
+        print 'Error, response code {0}'.format(r.status_code)
         sys.exit(2)
     else:
         print 'OK'
@@ -65,22 +65,24 @@ def upload(track_filename):
     return file_id
 
 
-def fetch_description(issue):
-    print '3. Get description from www.aquarium.ru',
+    print '{0}. Get description from www.aquarium.ru'.format(issue),
     r = requests.get('http://www.aquarium.ru/misc/aerostat/aerostat{0:02d}.html'.format(issue))
     if not r.status_code == 200:
-        print 'Error, reponse code != 200'
+        print 'Error, response code {0}'.format(r.status_code)
         sys.exit(3)
     else:
         print 'OK'
     soup = BeautifulSoup(r.text)
     body = soup.findAll('table')[0].tr.td
     header = body.findAll('p')[0].text
+    header = header.replace('\n', ' ')
     issue_text = trim_inside(body.findAll('p')[2:])
     issue_short = trim_inside(body.findAll('p')[2:3])
-    issue_name, issue_date = re.findall('^(.*)(\d{1,2}\s.*\s\d{4})$', header)
-    issue_date = parse_date(issue_date)
-    issue_name = issue_name.strip(',')
+    header = header.strip()
+    match = re.findall('^(.*)\s+(\d{1,2}\s.*\s\d{4})$', header, re.DOTALL | re.MULTILINE)
+    issue_name, issue_date = match[0]
+    issue_date = parse_date(issue_date.strip())
+    issue_name = issue_name.strip().strip(',')
     podcast_data = {
         'day': issue_date.day,
         'month': issue_date.month,
@@ -90,7 +92,6 @@ def fetch_description(issue):
         'short_descr': issue_short.encode('utf8'),
         'body': issue_text.encode('utf8'),
         'lent_id': ('%s' % LENT_ID),
-
     }
     return podcast_data
 
@@ -112,7 +113,7 @@ def save_podcast(file_id, podcast_data):
                       data=data
                       )
     if not r.status_code == 200:
-        print 'Error, response code != 200'
+        print 'Error, response code {0}'.format(r.status_code)
         sys.exit(4)
     else:
         print 'OK'
@@ -130,5 +131,9 @@ def main(folder):
 
 
 if __name__ == '__main__':
-    for folder in sorted(os.listdir('music'), key=lambda x: x):
-        main(join(dirname(__file__), 'music', folder))
+    if len(sys.argv) < 2:
+        root = join(dirname(__file__), 'music')
+    else:
+        root = sys.argv[1]
+    for folder in sorted(os.listdir(root), key=lambda x: x):
+        main(join(root, folder))
