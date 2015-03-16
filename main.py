@@ -4,7 +4,7 @@ import os
 import re
 import requests
 import json
-from os.path import join, dirname
+from os.path import join, dirname, basename
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from subprocess import Popen, PIPE
@@ -42,9 +42,9 @@ def strip_tags(soup):
 
 
 def merge_files(folder):
-    issue = int(re.findall('(\d+)', folder)[0])
+    issue = int(re.findall('^(\d+)\-.*', basename(folder))[0])
     track_filename = 'track_{0}.mp3'.format(issue)
-    print '----\nConcatenating files in {0}\n---\n'.format(folder),
+    print '----\n{1}:: Concatenating files in {0}\n---\n'.format(folder, issue),
     p = Popen('cat "{1}"/*.mp3 > tmp.mp3'.format(issue, folder), shell=True, stdout=PIPE, stderr=PIPE)
     p.wait()
     err = p.stderr.read()
@@ -78,7 +78,13 @@ def upload(track_filename):
     print r.url
     file_id = re.findall('file_id=(\d+)', r.url)[0]
     print 'OK'
+    cleanup_files()
     return file_id
+
+
+def cleanup_files():
+    p = Popen('rm *.mp3', shell=True, stdout=PIPE, stderr=PIPE)
+    p.wait()
 
 
 def fetch_description(issue):
@@ -196,7 +202,7 @@ def check_json():
 
 
 def main(root):
-    for folder in sorted(os.listdir(root), key=lambda s:s)[:10]:
+    for folder in sorted(os.listdir(root), key=lambda s: s):
         upload_podcast(join(root, folder))
 
 
