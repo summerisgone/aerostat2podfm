@@ -78,8 +78,9 @@ def fetch_description(issue):
     header = body.findAll('p')[0].text
     issue_text = trim_inside(body.findAll('p')[2:])
     issue_short = trim_inside(body.findAll('p')[2:3])
-    issue_name, issue_date = header.rsplit(',', 1)
+    issue_name, issue_date = re.findall('^(.*)(\d{1,2}\s.*\s\d{4})$', header)
     issue_date = parse_date(issue_date)
+    issue_name = issue_name.strip(',')
     podcast_data = {
         'day': issue_date.day,
         'month': issue_date.month,
